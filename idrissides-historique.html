@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Les Idrissides — Parcours Historique Interactif</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ========== RESET & BASE ========== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --or: #C9A227;
+      --or-pale: #E8D5A3;
+      --beige: #F5F0E8;
+      --beige-fonce: #EDE0C4;
+      --marine: #1A2744;
+      --marine-clair: #2C3E6B;
+      --brun: #2C1810;
+      --rouge: #C0392B;
+      --bleu: #1A6B9A;
+      --vert: #27AE60;
+      --orange: #E67E22;
+      --violet: #8E44AD;
+      --or-texte: #8B6914;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Crimson Text', Georgia, serif;
+      font-size: 18px;
+      background: linear-gradient(135deg, var(--beige) 0%, var(--beige-fonce) 50%, #E8D5A3 100%);
+      color: var(--brun);
+    }
+
+    /* ========== HEADER ========== */
+    header {
+      background: linear-gradient(135deg, var(--marine) 0%, #0D1B35 100%);
+      color: var(--beige);
+      padding: 16px 24px;
+      border-bottom: 3px solid var(--or);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(20px, 2.8vw, 32px);
+      color: #F5E6C8;
+      letter-spacing: 0.02em;
+      font-weight: 900;
+    }
+
+    header p {
+      font-size: clamp(14px, 1.5vw, 17px);
+      color: var(--or);
+      font-style: italic;
+      letter-spacing: 0.06em;
+      margin-top: 3px;
+    }
+
+    .header-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge-perso {
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 700;
+      border: 2px solid;
+      letter-spacing: 0.03em;
+    }
+
+    /* ========== LAYOUT PRINCIPAL ========== */
+    #app-layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      height: calc(100vh - 82px);
+    }
+
+    @media (max-width: 768px) {
+      #app-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        height: auto;
+      }
+    }
+
+    /* ========== PANNEAU LATÉRAL ========== */
+    #panneau {
+      background: rgba(245, 240, 232, 0.98);
+      border-right: 2px solid var(--or);
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    @media (max-width: 768px) {
+      #panneau {
+        max-height: 45vh;
+        border-right: none;
+        border-bottom: 2px solid var(--or);
+      }
+    }
+
+    .section-carte {
+      background: white;
+      border-radius: 8px;
+      padding: 13px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border: 1px solid var(--or-pale);
+    }
+
+    .section-titre {
+      font-size: 12px;
+      font-family: 'Playfair Display', serif;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--or-texte);
+      margin-bottom: 10px;
+      font-weight: 700;
+      border-bottom: 1px solid var(--or-pale);
+      padding-bottom: 6px;
+    }
+
+    /* ========== BOUTONS ========== */
+    .btn {
+      width: 100%;
+      padding: 11px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-family: inherit;
+      font-weight: 600;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+    }
+
+    .btn-primaire {
+      background: linear-gradient(135deg, var(--marine), var(--marine-clair));
+      color: #F5E6C8;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .btn-primaire:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #7B241C, var(--rouge));
+      color: white;
+    }
+
+    /* ========== FILTRES ========== */
+    .filtre-label {
+      font-size: 13px;
+      color: var(--or-texte);
+      margin-bottom: 5px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--or);
+      background: white;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--brun);
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    .range-group { margin-bottom: 6px; }
+
+    input[type=range] {
+      width: 100%;
+      accent-color: var(--or-texte);
+    }
+
+    .range-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--or-texte);
+      font-weight: 600;
+    }
+
+    /* ========== BARRE DE PROGRESSION ========== */
+    #progress-bar {
+      height: 4px;
+      background: var(--or-pale);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    #progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--rouge), var(--or));
+      border-radius: 2px;
+      transition: width 0.5s ease;
+      width: 0%;
+    }
+
+    #anim-info {
+      font-size: 13px;
+      color: var(--or-texte);
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    /* ========== LÉGENDE ========== */
+    .legende-grille {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+    }
+
+    .legende-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--brun);
+    }
+
+    .legende-point {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+      flex-shrink: 0;
+    }
+
+    .legende-ligne {
+      width: 24px;
+      height: 3px;
+      flex-shrink: 0;
+      border-radius: 2px;
+    }
+
+    /* ========== TIMELINE ========== */
+    #timeline-liste { max-height: 320px; overflow-y: auto; }
+
+    .evt-item {
+      padding: 9px 11px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.18s;
+      margin-bottom: 3px;
+    }
+
+    .evt-item:hover { background: rgba(201,162,39,0.1); }
+
+    .evt-annee {
+      font-size: 13px;
+      font-weight: 700;
+      font-family: monospace;
+      letter-spacing: 0.06em;
+    }
+
+    .evt-titre {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--brun);
+      line-height: 1.3;
+      margin: 2px 0;
+    }
+
+    .evt-badges { display: flex; gap: 4px; flex-wrap: wrap; }
+
+    .badge-small {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-weight: 700;
+    }
+
+    /* ========== CARTE ========== */
+    #carte-container {
+      position: relative;
+    }
+
+    #carte {
+      height: 100%;
+      width: 100%;
+    }
+
+    @media (max-width: 768px) {
+      #carte-container { height: 55vh; }
+    }
+
+    /* ========== POPUP DÉTAIL ========== */
+    #popup-detail {
+      position: absolute;
+      bottom: 20px;
+      right: 16px;
+      background: rgba(26, 39, 68, 0.96);
+      color: #F5E6C8;
+      padding: 18px 20px;
+      border-radius: 10px;
+      max-width: 320px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      border: 2px solid var(--or);
+      z-index: 1000;
+      display: none;
+      animation: slideIn 0.25s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    #popup-detail.visible { display: block; }
+
+    #popup-type-badge {
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      color: #A89060;
+      text-transform: uppercase;
+      font-family: 'Playfair Display', serif;
+      margin-bottom: 5px;
+    }
+
+    #popup-titre {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--or);
+      margin-bottom: 3px;
+      line-height: 1.3;
+    }
+
+    #popup-meta {
+      font-size: 13px;
+      color: #A89060;
+      font-style: italic;
+      margin-bottom: 10px;
+    }
+
+    #popup-texte {
+      font-size: 15px;
+      line-height: 1.65;
+      color: #E8D5A3;
+    }
+
+    #popup-nav {
+      margin-top: 12px;
+      border-top: 1px solid rgba(201,162,39,0.25);
+      padding-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .nav-btn {
+      background: none;
+      border: 1px solid var(--or);
+      color: var(--or);
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+
+    .nav-btn:hover { background: rgba(201,162,39,0.15); }
+
+    #popup-compteur { font-size: 13px; color: #A89060; }
+
+    #fermer-popup {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      background: none;
+      border: none;
+      color: var(--or);
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    /* ========== MARQUEUR LEAFLET PERSONNALISÉ ========== */
+    .marqueur-custom {
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .marqueur-custom:hover { transform: scale(1.2); }
+
+    /* Leaflet popup custom */
+    .leaflet-popup-content-wrapper {
+      border-radius: 8px !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25) !important;
+      font-family: 'Crimson Text', Georgia, serif !important;
+      border: 1px solid var(--or-pale) !important;
+    }
+
+    .leaflet-popup-tip-container .leaflet-popup-tip {
+      background: white !important;
+    }
+
+    /* Scrollbar style */
+    #panneau::-webkit-scrollbar,
+    #timeline-liste::-webkit-scrollbar { width: 4px; }
+    #panneau::-webkit-scrollbar-track,
+    #timeline-liste::-webkit-scrollbar-track { background: var(--or-pale); }
+    #panneau::-webkit-scrollbar-thumb,
+    #timeline-liste::-webkit-scrollbar-thumb { background: var(--or-texte); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- ========== EN-TÊTE ========== -->
+<header>
+  <div>
+    <h1>⚜ Les Idrissides — Fondateurs du Maroc</h1>
+    <p>Parcours historique interactif d'Idris Ier et Idris II · 786 – 828</p>
+  </div>
+  <div class="header-badges">
+    <div class="badge-perso" style="border-color:#C0392B;color:#F5E6C8;background:rgba(192,57,43,0.2)">Idris I</div>
+    <div class="badge-perso" style="border-color:#1A6B9A;color:#F5E6C8;background:rgba(26,107,154,0.2)">Idris II</div>
+  </div>
+</header>
+
+<!-- ========== CORPS PRINCIPAL ========== -->
+<div id="app-layout">
+
+  <!-- PANNEAU LATÉRAL -->
+  <aside id="panneau">
+
+    <!-- Animation -->
+    <div class="section-carte">
+      <div class="section-titre">🎬 Parcours animé</div>
+      <button class="btn btn-primaire" id="btn-anim" onclick="toggleAnimation()">▶ Lancer l'animation</button>
+      <div id="progress-bar" style="display:none">
+        <div id="progress-fill"></div>
+      </div>
+      <div id="anim-info" style="display:none"></div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="section-carte">
+      <div class="section-titre">🔍 Filtres</div>
+      <div class="filtre-label">Personnage</div>
+      <select id="filtre-perso" onchange="appliquerFiltres()">
+        <option value="tous">Tous les personnages</option>
+        <option value="Idris I">Idris Ier uniquement</option>
+        <option value="Idris II">Idris II uniquement</option>
+      </select>
+      <div class="filtre-label">Période : <span id="label-annees">786 – 828</span></div>
+      <div class="range-group">
+        <input type="range" id="annee-debut" min="786" max="828" value="786"
+               oninput="majAnnees()" style="margin-bottom:4px"/>
+        <input type="range" id="annee-fin"   min="786" max="828" value="828"
+               oninput="majAnnees()"/>
+      </div>
+      <div class="range-labels"><span>786</span><span>807</span><span>828</span></div>
+    </div>
+
+    <!-- Légende -->
+    <div class="section-carte">
+      <div class="section-titre">📍 Légende</div>
+      <div class="legende-grille">
+        <div class="legende-item"><div class="legende-point" style="background:#C0392B"></div>Fuite</div>
+        <div class="legende-item"><div class="legende-point" style="background:#27AE60"></div>Fondation</div>
+        <div class="legende-item"><div class="legende-point" style="background:#2980B9"></div>Expansion</div>
+        <div class="legende-item"><div class="legende-point" style="background:#E67E22"></div>Voyage</div>
+        <div class="legende-item"><div class="legende-point" style="background:#8E44AD"></div>Décès</div>
+        <div class="legende-item"><div class="legende-point" style="background:#D4A017"></div>Culture</div>
+      </div>
+      <div style="margin-top:9px;border-top:1px solid #E8D5A3;padding-top:8px;display:flex;flex-direction:column;gap:5px;">
+        <div class="legende-item"><div class="legende-ligne" style="background:#C0392B;opacity:0.7"></div>Parcours Idris I</div>
+        <div class="legende-item"><div class="legende-ligne" style="background:#1A6B9A;opacity:0.7"></div>Parcours Idris II</div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="section-carte">
+      <div class="section-titre">📅 Chronologie — <span id="nb-evt">15</span> événements</div>
+      <div id="timeline-liste"></div>
+    </div>
+
+  </aside>
+
+  <!-- CARTE -->
+  <div id="carte-container">
+    <div id="carte"></div>
+
+    <!-- Popup détail -->
+    <div id="popup-detail">
+      <button id="fermer-popup" onclick="fermerPopup()" title="Fermer">×</button>
+      <div id="popup-type-badge"></div>
+      <div id="popup-titre"></div>
+      <div id="popup-meta"></div>
+      <p id="popup-texte"></p>
+      <div id="popup-nav">
+        <button class="nav-btn" onclick="naviguerPopup(-1)">← Précédent</button>
+        <span id="popup-compteur"></span>
+        <button class="nav-btn" onclick="naviguerPopup(1)">Suivant →</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// =============================================================
+// DONNÉES HISTORIQUES
+// Équivalent d'un fichier JSON — source de vérité de l'application
+// =============================================================
+const EVENEMENTS = [
+  {
+    id: 1, lieu: "Fakhkh (près de La Mecque)", annee: 786,
+    lat: 21.4, lng: 39.8, personnage: "Idris I", type: "fuite", couleur: "#C0392B",
+    titre: "Bataille de Fakhkh",
+    texte: "En 786, la bataille de Fakhkh marque la défaite des Alides face aux Abbassides. Idris ibn Abdallah, descendant direct du Prophète, est contraint de fuir après que son cousin et ses partisans ont été massacrés. Il entame alors un long voyage vers l'ouest pour échapper aux persécutions abbassides."
+  },
+  {
+    id: 2, lieu: "Traversée de l'Égypte", annee: 787,
+    lat: 27.0, lng: 30.0, personnage: "Idris I", type: "voyage", couleur: "#E67E22",
+    titre: "Traversée de l'Égypte",
+    texte: "Après sa fuite d'Arabie, Idris Ier traverse l'Égypte avec discrétion, aidé par des fidèles. Il évite les agents abbassides lancés à sa poursuite et poursuit son chemin vers le Maghreb, guidé par sa foi et sa détermination à construire un refuge pour les Alides loin du califat."
+  },
+  {
+    id: 3, lieu: "Tripolitaine (actuelle Libye)", annee: 787,
+    lat: 32.9, lng: 13.2, personnage: "Idris I", type: "voyage", couleur: "#E67E22",
+    titre: "Passage par la Tripolitaine",
+    texte: "En traversant la Tripolitaine (actuelle Libye), Idris Ier gagne progressivement la confiance des tribus amazighes locales. Son statut de Chérif — descendant du Prophète — lui confère une légitimité religieuse précieuse qui facilite son accueil et son cheminement vers le Maghreb al-Aqsa."
+  },
+  {
+    id: 4, lieu: "Tlemcen (Algérie)", annee: 787,
+    lat: 34.88, lng: -1.32, personnage: "Idris I", type: "voyage", couleur: "#E67E22",
+    titre: "Étape à Tlemcen",
+    texte: "Idris Ier fait halte à Tlemcen, important carrefour commercial et culturel du Maghreb central. Il y rencontre des notables amazighes qui reconnaissent en lui un chef potentiel. Cette étape consolide son réseau d'alliances avant son arrivée en territoire marocain."
+  },
+  {
+    id: 5, lieu: "Volubilis (Walili), Maroc", annee: 788,
+    lat: 34.07, lng: -5.55, personnage: "Idris I", type: "fondation", couleur: "#27AE60",
+    titre: "Accueil par les Awraba",
+    texte: "En 788, Idris Ier arrive à Volubilis (Walili), ancienne cité romaine au nord du Maroc. La tribu amazighe des Awraba, sous l'autorité d'Ishaq ibn Muhammad, le reconnaît comme imam et chef légitime. Cet accueil chaleureux constitue le point de départ de la fondation de l'État idrisside."
+  },
+  {
+    id: 6, lieu: "Moulay Idriss Zerhoun", annee: 788,
+    lat: 34.06, lng: -5.53, personnage: "Idris I", type: "fondation", couleur: "#1A8B3C",
+    titre: "Fondation de l'État idrisside",
+    texte: "En 788, Idris Ier est officiellement proclamé imam et prince par les tribus amazighes. Il fonde ainsi le premier État arabo-amazighe du Maghreb al-Aqsa, indépendant du califat abbasside. Son règne instaure une administration islamisée et unifie progressivement les tribus de la région autour de son autorité."
+  },
+  {
+    id: 7, lieu: "Région de Taza", annee: 789,
+    lat: 34.21, lng: -4.01, personnage: "Idris I", type: "expansion", couleur: "#2980B9",
+    titre: "Expansion vers l'Est",
+    texte: "Après sa proclamation, Idris Ier entreprend l'unification des tribus de la région. Il étend son autorité vers l'est, notamment dans la région de Taza, corridor stratégique entre le Maroc et l'Algérie. Cette expansion consolide les frontières orientales du nouvel État idrisside."
+  },
+  {
+    id: 8, lieu: "Moulay Idriss Zerhoun", annee: 791,
+    lat: 34.065, lng: -5.535, personnage: "Idris I", type: "mort", couleur: "#8E44AD",
+    titre: "Assassinat d'Idris Ier",
+    texte: "En 791, le calife abbasside Haroun al-Rachid envoie un émissaire qui empoisonne Idris Ier. Sa mort prématurée est un coup dur pour le jeune État, mais son œuvre se poursuivra grâce à son fils Idris II, né peu après de son épouse amazighe Kenza al-Awrabiya, assurant la continuité dynastique."
+  },
+  {
+    id: 9, lieu: "Walili (Volubilis)", annee: 793,
+    lat: 34.07, lng: -5.56, personnage: "Idris II", type: "naissance", couleur: "#16A085",
+    titre: "Règne d'Idris II",
+    texte: "Idris II naît en 791 à titre posthume. Élevé sous la tutelle du fidèle ministre Rachid al-Khatim, il grandit à Volubilis dans la tradition de son père. En 793, âgé seulement de 11 ans, il est reconnu comme imam légitime par les tribus alliées, assurant la continuité de la dynastie idrissidee."
+  },
+  {
+    id: 10, lieu: "Fès — Rive des Andalous", annee: 808,
+    lat: 34.065, lng: -5.005, personnage: "Idris II", type: "fondation", couleur: "#D4A017",
+    titre: "Fondation de Fès",
+    texte: "En 808, Idris II fonde une nouvelle cité sur les rives de l'oued Fès. Il accueille d'abord des familles arabes expulsées d'Andalousie (Cordoue), qui s'installent sur la rive gauche, le 'Adwat al-Andalus'. Ce quartier donne naissance à la ville de Fès, future capitale et métropole du Maroc."
+  },
+  {
+    id: 11, lieu: "Fès — Rive des Kairouanais", annee: 818,
+    lat: 34.063, lng: -5.01, personnage: "Idris II", type: "fondation", couleur: "#C9A227",
+    titre: "Arrivée des Kairouanais",
+    texte: "En 818, Idris II accueille des milliers de familles venues de Kairouan (Tunisie), qui s'installent sur la rive droite de l'oued Fès. Les deux communautés — Andalouses et Kairouanaises — développent chacune leur quartier, transformant Fès en une métropole cosmopolite et un grand centre intellectuel."
+  },
+  {
+    id: 12, lieu: "Fès — Capitale culturelle", annee: 820,
+    lat: 34.064, lng: -5.008, personnage: "Idris II", type: "culture", couleur: "#C0392B",
+    titre: "Fès, capitale idrissidee",
+    texte: "Sous Idris II, Fès devient la véritable capitale politique et culturelle de l'État idrisside. La ville connaît un essor remarquable : artisanat, commerce, enseignement coranique. Les bases de ce qui deviendra la mosquée al-Qarawiyyin — future grande université islamique — y sont posées en cette période."
+  },
+  {
+    id: 13, lieu: "Tanger", annee: 810,
+    lat: 35.76, lng: -5.8, personnage: "Idris II", type: "expansion", couleur: "#2980B9",
+    titre: "Contrôle de Tanger",
+    texte: "Idris II étend son autorité jusqu'à Tanger, port stratégique sur le détroit de Gibraltar. Le contrôle de cette ville renforce la puissance commerciale et militaire de l'État idrisside et lui permet de surveiller les échanges entre l'Afrique du Nord et la péninsule ibérique."
+  },
+  {
+    id: 14, lieu: "Sijilmassa (Tafilalt)", annee: 812,
+    lat: 31.7, lng: -4.0, personnage: "Idris II", type: "expansion", couleur: "#2471A3",
+    titre: "Expansion vers le Sud",
+    texte: "L'État idrisside étend progressivement son influence vers le sud jusqu'à la région du Tafilalt (Sijilmassa). Cette expansion permet le contrôle des routes caravanières trans-sahariennes, source importante de revenus en or et en sel, renforçant ainsi la puissance économique de la jeune dynasty."
+  },
+  {
+    id: 15, lieu: "Fès", annee: 828,
+    lat: 34.068, lng: -5.005, personnage: "Idris II", type: "mort", couleur: "#8E44AD",
+    titre: "Mort d'Idris II et division",
+    texte: "À la mort d'Idris II en 828, l'État idrisside est divisé entre ses nombreux fils, selon la tradition arabe. Cette fragmentation affaiblit progressivement la dynasty, rendant le Maroc vulnérable aux ambitions des Fatimides et des Omeyyades d'Espagne, conduisant au déclin final des Idrissides."
+  }
+];
+
+// Libellés des types d'événements
+const TYPE_LABELS = {
+  fuite: "Fuite", voyage: "Voyage", fondation: "Fondation",
+  expansion: "Expansion", mort: "Décès", naissance: "Règne", culture: "Culture"
+};
+
+const COULEUR_PERSO = { "Idris I": "#C0392B", "Idris II": "#1A6B9A" };
+
+// Trier par année
+const EVENEMENTS_TRIES = [...EVENEMENTS].sort((a, b) => a.annee - b.annee);
+
+// =============================================================
+// INITIALISATION DE LA CARTE
+// =============================================================
+const carte = L.map("carte", { zoomControl: true }).setView([30.0, -2.0], 5);
+
+// Fond de carte sobre (CARTO Light)
+L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  maxZoom: 18
+}).addTo(carte);
+
+// =============================================================
+// CRÉATION DES MARQUEURS PERSONNALISÉS
+// =============================================================
+function creerIcone(couleur, taille = 34) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${taille}" height="${taille}" viewBox="0 0 36 36">
+    <circle cx="18" cy="18" r="14" fill="${couleur}" opacity="0.92" stroke="white" stroke-width="2.5"/>
+    <circle cx="18" cy="18" r="6" fill="white" opacity="0.88"/>
+  </svg>`;
+  return L.divIcon({
+    html: svg, className: "marqueur-custom",
+    iconSize: [taille, taille], iconAnchor: [taille/2, taille/2], popupAnchor: [0, -(taille/2)]
+  });
+}
+
+// =============================================================
+// ÉTAT DE L'APPLICATION
+// =============================================================
+let evenementActif = null;
+let modeAnimation = false;
+let intervalAnimation = null;
+let etapeAnimation = 0;
+let polylineIdris1 = null;
+let polylineIdris2 = null;
+let marqueurs = [];
+
+// =============================================================
+// RENDU INITIAL
+// =============================================================
+function initialiser() {
+  dessinerPolylines();
+  afficherMarqueurs(EVENEMENTS_TRIES);
+  remplirTimeline(EVENEMENTS_TRIES);
+}
+
+// Tracer les lignes de parcours
+function dessinerPolylines() {
+  const coords1 = EVENEMENTS_TRIES.filter(e => e.personnage === "Idris I").map(e => [e.lat, e.lng]);
+  const coords2 = EVENEMENTS_TRIES.filter(e => e.personnage === "Idris II").map(e => [e.lat, e.lng]);
+  polylineIdris1 = L.polyline(coords1, { color:"#C0392B", weight:3, opacity:0.5, dashArray:"8,6" }).addTo(carte);
+  polylineIdris2 = L.polyline(coords2, { color:"#1A6B9A", weight:3, opacity:0.5, dashArray:"8,6" }).addTo(carte);
+}
+
+// Créer et afficher les marqueurs
+function afficherMarqueurs(evts) {
+  // Supprimer les anciens
+  marqueurs.forEach(m => carte.removeLayer(m.layer));
+  marqueurs = [];
+
+  evts.forEach(evt => {
+    const marker = L.marker([evt.lat, evt.lng], { icon: creerIcone(evt.couleur) });
+
+    // Popup Leaflet (survol)
+    marker.bindPopup(`
+      <div style="font-family:'Crimson Text',Georgia,serif;max-width:230px;padding:3px">
+        <div style="font-size:16px;font-weight:700;color:${evt.couleur};margin-bottom:3px">${evt.titre}</div>
+        <div style="font-size:13px;color:#888;margin-bottom:6px;font-style:italic">
+          ${evt.lieu} · ${evt.annee} · ${evt.personnage}
+        </div>
+        <div style="font-size:14px;line-height:1.6;color:#333">${evt.texte}</div>
+      </div>
+    `);
+
+    // Clic → afficher panneau détail
+    marker.on("click", () => afficherDetail(evt));
+    marker.addTo(carte);
+    marqueurs.push({ id: evt.id, layer: marker });
+  });
+}
+
+// Remplir la liste timeline dans le panneau latéral
+function remplirTimeline(evts) {
+  const liste = document.getElementById("timeline-liste");
+  document.getElementById("nb-evt").textContent = evts.length;
+  liste.innerHTML = "";
+
+  evts.forEach(evt => {
+    const div = document.createElement("div");
+    div.className = "evt-item";
+    div.id = `evt-${evt.id}`;
+    div.innerHTML = `
+      <div class="evt-annee" style="color:${evt.couleur}">${evt.annee}</div>
+      <div class="evt-titre">${evt.titre}</div>
+      <div class="evt-badges">
+        <span class="badge-small" style="background:${COULEUR_PERSO[evt.personnage]}20;color:${COULEUR_PERSO[evt.personnage]};border:1px solid ${COULEUR_PERSO[evt.personnage]}40">${evt.personnage}</span>
+        <span class="badge-small" style="background:${evt.couleur}18;color:${evt.couleur};border:1px solid ${evt.couleur}35">${TYPE_LABELS[evt.type]}</span>
+      </div>
+    `;
+    div.onclick = () => {
+      afficherDetail(evt);
+      carte.flyTo([evt.lat, evt.lng], 7, { duration: 1.2 });
+    };
+    liste.appendChild(div);
+  });
+}
+
+// =============================================================
+// AFFICHER LE POPUP DÉTAIL (bas-droite de la carte)
+// =============================================================
+function afficherDetail(evt) {
+  evenementActif = evt;
+
+  // Mettre en évidence dans la timeline
+  document.querySelectorAll(".evt-item").forEach(el => {
+    el.style.border = "2px solid transparent";
+    el.style.background = "";
+  });
+  const el = document.getElementById(`evt-${evt.id}`);
+  if (el) {
+    el.style.border = `2px solid ${evt.couleur}`;
+    el.style.background = `${evt.couleur}12`;
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  // Remplir le popup
+  const idx = EVENEMENTS_TRIES.findIndex(e => e.id === evt.id);
+  document.getElementById("popup-type-badge").textContent = `${evt.personnage} · ${TYPE_LABELS[evt.type]}`;
+  document.getElementById("popup-titre").textContent = evt.titre;
+  document.getElementById("popup-meta").textContent = `📍 ${evt.lieu}  ·  🗓 ${evt.annee}`;
+  document.getElementById("popup-texte").textContent = evt.texte;
+  document.getElementById("popup-compteur").textContent = `${idx + 1} / ${EVENEMENTS_TRIES.length}`;
+
+  const popup = document.getElementById("popup-detail");
+  popup.classList.add("visible");
+}
+
+function fermerPopup() {
+  document.getElementById("popup-detail").classList.remove("visible");
+  evenementActif = null;
+}
+
+// Navigation précédent / suivant dans le popup
+function naviguerPopup(direction) {
+  if (!evenementActif) return;
+  const idx = EVENEMENTS_TRIES.findIndex(e => e.id === evenementActif.id);
+  const nouvelIdx = idx + direction;
+  if (nouvelIdx >= 0 && nouvelIdx < EVENEMENTS_TRIES.length) {
+    const prochainEvt = EVENEMENTS_TRIES[nouvelIdx];
+    afficherDetail(prochainEvt);
+    carte.flyTo([prochainEvt.lat, prochainEvt.lng], 7, { duration: 1.2 });
+  }
+}
+
+// =============================================================
+// FILTRES
+// =============================================================
+function majAnnees() {
+  const debut = +document.getElementById("annee-debut").value;
+  const fin   = +document.getElementById("annee-fin").value;
+  document.getElementById("label-annees").textContent = `${Math.min(debut,fin)} – ${Math.max(debut,fin)}`;
+  appliquerFiltres();
+}
+
+function appliquerFiltres() {
+  const debut  = +document.getElementById("annee-debut").value;
+  const fin    = +document.getElementById("annee-fin").value;
+  const perso  = document.getElementById("filtre-perso").value;
+  const [minA, maxA] = [Math.min(debut,fin), Math.max(debut,fin)];
+
+  const filtres = EVENEMENTS_TRIES.filter(e =>
+    e.annee >= minA && e.annee <= maxA &&
+    (perso === "tous" || e.personnage === perso)
+  );
+
+  afficherMarqueurs(filtres);
+  remplirTimeline(filtres);
+
+  // Afficher/masquer les polylines selon le filtre personnage
+  if (polylineIdris1 && polylineIdris2) {
+    if (perso === "tous" || perso === "Idris I") carte.addLayer(polylineIdris1);
+    else carte.removeLayer(polylineIdris1);
+    if (perso === "tous" || perso === "Idris II") carte.addLayer(polylineIdris2);
+    else carte.removeLayer(polylineIdris2);
+  }
+}
+
+// =============================================================
+// ANIMATION PAS À PAS
+// =============================================================
+function toggleAnimation() {
+  if (!modeAnimation) {
+    demarrerAnimation();
+  } else {
+    arreterAnimation();
+  }
+}
+
+function demarrerAnimation() {
+  modeAnimation = true;
+  etapeAnimation = 0;
+
+  // Réinitialiser les filtres
+  document.getElementById("filtre-perso").value = "tous";
+  appliquerFiltres();
+
+  // Changer le bouton
+  const btn = document.getElementById("btn-anim");
+  btn.textContent = "⏹ Arrêter l'animation";
+  btn.className = "btn btn-danger";
+
+  // Afficher la barre de progression
+  document.getElementById("progress-bar").style.display = "block";
+  document.getElementById("anim-info").style.display = "block";
+
+  // Démarrer sur le premier événement
+  allerAuEvenement(etapeAnimation);
+
+  // Avancer toutes les 2.8 secondes
+  intervalAnimation = setInterval(() => {
+    etapeAnimation++;
+    if (etapeAnimation >= EVENEMENTS_TRIES.length) {
+      arreterAnimation();
+      return;
+    }
+    allerAuEvenement(etapeAnimation);
+  }, 2800);
+}
+
+function allerAuEvenement(idx) {
+  const evt = EVENEMENTS_TRIES[idx];
+  carte.flyTo([evt.lat, evt.lng], 6, { duration: 1.4 });
+  afficherDetail(evt);
+
+  // Mettre à jour la barre et l'info
+  const pct = ((idx + 1) / EVENEMENTS_TRIES.length * 100).toFixed(0);
+  document.getElementById("progress-fill").style.width = pct + "%";
+  document.getElementById("anim-info").textContent =
+    `Étape ${idx + 1} / ${EVENEMENTS_TRIES.length} — ${evt.annee} : ${evt.titre}`;
+}
+
+function arreterAnimation() {
+  modeAnimation = false;
+  clearInterval(intervalAnimation);
+
+  const btn = document.getElementById("btn-anim");
+  btn.textContent = "▶ Lancer l'animation";
+  btn.className = "btn btn-primaire";
+
+  document.getElementById("progress-bar").style.display = "none";
+  document.getElementById("anim-info").style.display = "none";
+}
+
+// =============================================================
+// LANCEMENT
+// =============================================================
+initialiser();
+</script>
+</body>
+</html>
